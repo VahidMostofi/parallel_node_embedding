@@ -1,0 +1,69 @@
+{
+    "splits_count": 4,
+    "combinations": [
+        [
+            0,
+            1
+        ],
+        [
+            1,
+            2
+        ],
+        [
+            2,
+            3
+        ]
+    ],
+    "number_of_combinations": 3,
+    "main_graph_nodes": 4039,
+    "main_graph_edges": 88234,
+    "split_size": 1010,
+    "dataset_name": "facebook",
+    "true_train_edges_count": 61610,
+    "true_test_edges_count": 26624,
+    "test_name": "1572813244",
+    "splits_nodes_counts": [
+        1010,
+        1010,
+        1010,
+        1009
+    ],
+    "ignored_edges_count": 33494,
+    "ignored_edges_fraction": 0.3796042341954349,
+    "combinations_edges_count": [
+        [
+            "0_1",
+            22138
+        ],
+        [
+            "1_2",
+            22138
+        ],
+        [
+            "2_3",
+            22138
+        ]
+    ],
+    "splits_node2vec_runnning_times": [
+        [
+            "0_1",
+            "28.96"
+        ],
+        [
+            "1_2",
+            "29.54"
+        ],
+        [
+            "2_3",
+            "30.10"
+        ]
+    ],
+    "distances": {
+        "1": 13292,
+        "3": 13294,
+        "2": 20004,
+        "4": 6658
+    },
+    "test_roc": 0.9876114228773399,
+    "test_ap": 0.9836363026051431
+}
