@@ -151,6 +151,8 @@ details['splits_nodes_counts'] = [len(l) for l in split_nodes]
 ignored_edges = []
 for e in list(graph.edges()):
     ignored = True
+    if (str(min(int(e[0]), int(e[1]))), str(max(int(e[0]), int(e[1])))) in test_edges_true:
+        continue
     for comb_idx, comb in enumerate(combinations):
         if(is_in(split_ranges[comb[0]], split_ranges[comb[1]], e[0], e[1])):
             combination_edges[comb_idx].append((e[0],e[1]))
