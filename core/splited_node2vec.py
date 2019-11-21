@@ -469,5 +469,6 @@ print(test_ap)
 #======================RUN TEST ON TEST DATA FINISH=========================
 
 #write details to file
-with open('results/'+str(test_name)+'.json', 'w') as fp:
+base_name = details['dataset_name'] + '_' + str(details['splits_count']) + '_' + str(details['number_of_combinations']) + '_'
+with open('results/'+base_name + str(test_name)+'.json', 'w') as fp:
     json.dump(details, fp, indent=4)

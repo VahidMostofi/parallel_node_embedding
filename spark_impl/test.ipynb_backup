@@ -1,0 +1,583 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import findspark\n",
+    "findspark.init()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import requests \n",
+    "def send_info(info):\n",
+    "    requests.get(url='http://127.0.0.1:8080/' + str(info))\n",
+    "send_info('test')    "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pyspark\n",
+    "import time\n",
+    "import random\n",
+    "\n",
+    "import networkx as nx\n",
+    "import node2vec\n",
+    "import numpy as np\n",
+    "from gensim.models import Word2Vec\n",
+    "from sklearn.linear_model import LogisticRegression\n",
+    "from sklearn.metrics import roc_auc_score\n",
+    "from sklearn.metrics import average_precision_score"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 28,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "number_of_batches = 8\n",
+    "embed_dim = 128\n",
+    "number_of_walks = 10 #10\n",
+    "length_of_walks = 80 #80\n",
+    "node2vec_p = 0.3\n",
+    "node2vec_q = 0.3\n",
+    "input_path = '/Users/vahid/Desktop/projects/tesstt/myway/data/facebook/'\n",
+    "# input_path = '/Users/vahid/Desktop/projects/tesstt/myway/data/arxiv/'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 29,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "120\n"
+     ]
+    }
+   ],
+   "source": [
+    "# combinations = [(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]\n",
+    "combinations = []\n",
+    "for i in range(number_of_batches):\n",
+    "    for j in range((i+1), number_of_batches):\n",
+    "        combinations.append((i,j))\n",
+    "\n",
+    "combinations = [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6), (6, 7), (0, 3), (3, 7), (1, 5)]\n",
+    "print(len(combinations))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 30,
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "ValueError",
+     "evalue": "Cannot run multiple SparkContexts at once; existing SparkContext(app=test_myway, master=local[*]) created by __init__ at <ipython-input-6-08cc3ceecc5d>:1 ",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mValueError\u001b[0m                                Traceback (most recent call last)",
+      "\u001b[0;32m<ipython-input-30-08cc3ceecc5d>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[0;32m----> 1\u001b[0;31m \u001b[0msc\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpyspark\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mSparkContext\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mappName\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;34m\"test_myway\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m",
+      "\u001b[0;32m~/Desktop/learn/spark/spark-2.3.0-bin-hadoop2.7/python/pyspark/context.py\u001b[0m in \u001b[0;36m__init__\u001b[0;34m(self, master, appName, sparkHome, pyFiles, environment, batchSize, serializer, conf, gateway, jsc, profiler_cls)\u001b[0m\n\u001b[1;32m    113\u001b[0m         \"\"\"\n\u001b[1;32m    114\u001b[0m         \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_callsite\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mfirst_spark_call\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m \u001b[0;32mor\u001b[0m \u001b[0mCallSite\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;32mNone\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;32mNone\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 115\u001b[0;31m         \u001b[0mSparkContext\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_ensure_initialized\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mgateway\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mgateway\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mconf\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mconf\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    116\u001b[0m         \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    117\u001b[0m             self._do_init(master, appName, sparkHome, pyFiles, environment, batchSize, serializer,\n",
+      "\u001b[0;32m~/Desktop/learn/spark/spark-2.3.0-bin-hadoop2.7/python/pyspark/context.py\u001b[0m in \u001b[0;36m_ensure_initialized\u001b[0;34m(cls, instance, gateway, conf)\u001b[0m\n\u001b[1;32m    294\u001b[0m                         \u001b[0;34m\" created by %s at %s:%s \"\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    295\u001b[0m                         % (currentAppName, currentMaster,\n\u001b[0;32m--> 296\u001b[0;31m                             callsite.function, callsite.file, callsite.linenum))\n\u001b[0m\u001b[1;32m    297\u001b[0m                 \u001b[0;32melse\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    298\u001b[0m                     \u001b[0mSparkContext\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_active_spark_context\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0minstance\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;31mValueError\u001b[0m: Cannot run multiple SparkContexts at once; existing SparkContext(app=test_myway, master=local[*]) created by __init__ at <ipython-input-6-08cc3ceecc5d>:1 "
+     ]
+    }
+   ],
+   "source": [
+    "sc = pyspark.SparkContext(appName=\"test_myway\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 31,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "train_edge_true = sc.textFile(input_path + \"train_edges_true.txt\") \\\n",
+    ".map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) \\\n",
+    ".map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 1))\n",
+    "train_edge_false= sc.textFile(input_path + \"train_edges_false.txt\") \\\n",
+    ".map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) \\\n",
+    ".map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 0))\n",
+    "train_edges = sc.union([train_edge_true, train_edge_false]).persist()\n",
+    "del train_edge_true\n",
+    "del train_edge_false"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "nodes = train_edges.flatMap(lambda x: [x[0],x[1]]).distinct().persist()\n",
+    "nodes_count = len(nodes.collect()) #todo optimize"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "batch_size = 1 + (nodes_count // number_of_batches)\n",
+    "# print('batch_size', batch_size)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 34,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "node2parition = nodes.map(lambda x: (x, x // batch_size))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 35,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "bd_node2partition = sc.broadcast(node2parition.collectAsMap())\n",
+    "def find_partitions(edge):\n",
+    "    def is_in(batch0, batch1, combination):\n",
+    "        if batch0 == combination[0] and batch1 == combination[1]:\n",
+    "            return True\n",
+    "        if batch1 == combination[0] and batch0 == combination[1]:\n",
+    "            return True\n",
+    "        if batch1 == combination[0] and batch0 == combination[0]:\n",
+    "            return True\n",
+    "        if batch1 == combination[1] and batch0 == combination[1]:\n",
+    "            return True\n",
+    "        \n",
+    "    batch0 = bd_node2partition.value[edge[0]]\n",
+    "    batch1 = bd_node2partition.value[edge[1]]\n",
+    "    results = []\n",
+    "    for comb in combinations:\n",
+    "        if is_in(batch0, batch1, comb):\n",
+    "            results.append((comb, edge))\n",
+    "    return results"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 36,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "train_edges2comb = train_edges.flatMap(find_partitions)\n",
+    "train_edges2comb_filtered = train_edges2comb.filter(lambda ee: ee[0] in combinations)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 37,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def embed_edge_list(edge_list):\n",
+    "    nx_g = nx.Graph()\n",
+    "    for e in edge_list:\n",
+    "        if e[2] == 1:\n",
+    "            nx_g.add_edge(e[0],e[1])\n",
+    "    for edge in nx_g.edges():\n",
+    "        nx_g[edge[0]][edge[1]]['weight'] = 1\n",
+    "\n",
+    "    G = node2vec.Graph(nx_g, False, node2vec_p, node2vec_q)\n",
+    "    G.preprocess_transition_probs()\n",
+    "    \n",
+    "    walks = G.simulate_walks(number_of_walks, length_of_walks, verbose=False)\n",
+    "    model = learn_embeddings(walks)\n",
+    "    return model\n",
+    "\n",
+    "def learn_embeddings(walks):\n",
+    "    walks = [list(map(str, walk)) for walk in walks]\n",
+    "    model = Word2Vec(walks, size=embed_dim, window=10, min_count=0, sg=1, workers=2, iter=1)\n",
+    "    return model"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 38,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#todo partition?!!\n",
+    "partioned = train_edges2comb_filtered.partitionBy(len(combinations))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 39,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def make_model(iteratable):\n",
+    "    start_time = time.time()\n",
+    "    count = len(iteratable)\n",
+    "    model = embed_edge_list(iteratable)\n",
+    "    edges_embs = np.zeros([count, embed_dim])\n",
+    "    labels = np.zeros([count])\n",
+    "    i = 0\n",
+    "    for e in iteratable:\n",
+    "        flag = False\n",
+    "        try:\n",
+    "            emb1 = model.wv.get_vector(str(e[0]))\n",
+    "        except:\n",
+    "            flag = True\n",
+    "            emb1 = np.zeros([embed_dim])\n",
+    "        try:\n",
+    "            emb2 = model.wv.get_vector(str(e[1]))\n",
+    "        except:\n",
+    "            flag = True\n",
+    "            emb2 = np.zeros([embed_dim])\n",
+    "        edges_embs[i,:] = np.multiply(emb1, emb2)\n",
+    "        labels[i] = e[2]\n",
+    "        \n",
+    "        i +=1\n",
+    "    edge_classifier = LogisticRegression(random_state=0, solver='lbfgs', max_iter=250)\n",
+    "    edge_classifier.fit(edges_embs, labels)\n",
+    "#     send_info('end_make_model_' + str(time.time()) + '_' + str(time.time() - start_time))\n",
+    "    return (edge_classifier, model.wv)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 40,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "models = partioned.groupByKey().mapValues(make_model).persist()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_edge_true = sc.textFile(input_path + \"test_edges_true.txt\") \\\n",
+    ".map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) \\\n",
+    ".map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 1))\n",
+    "test_edge_false= sc.textFile(input_path + \"test_edges_false.txt\") \\\n",
+    ".map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) \\\n",
+    ".map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 0))\n",
+    "test_edges = sc.union([test_edge_true, test_edge_false]).persist()\n",
+    "del test_edge_true\n",
+    "del test_edge_false"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_edges2comb = test_edges.flatMap(find_partitions)\n",
+    "test_edges2comb_filtered = test_edges2comb.filter(lambda ee: ee[0] in combinations)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "tests_models_comb = test_edges2comb_filtered.groupByKey().leftOuterJoin(models).persist()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def predict(values):\n",
+    "    test_edges_iter = values[0]\n",
+    "    predictable_model = values[1][0]\n",
+    "    edge_embeddings = values[1][1]\n",
+    "    count = len(test_edges_iter)\n",
+    "    edges_embs = np.zeros([count, embed_dim])\n",
+    "    labels = np.zeros([count])\n",
+    "    i = 0\n",
+    "    debug_count = 0\n",
+    "    names = []\n",
+    "    for e in test_edges_iter:\n",
+    "        flag = False\n",
+    "        try:\n",
+    "            emb1 = edge_embeddings.get_vector(str(e[0]))\n",
+    "        except:\n",
+    "            flag = True\n",
+    "            emb1 = np.zeros([embed_dim])\n",
+    "        try:\n",
+    "            emb2 = edge_embeddings.get_vector(str(e[1]))\n",
+    "        except:\n",
+    "            flag = True\n",
+    "            emb2 = np.zeros([embed_dim])\n",
+    "        edges_embs[i,:] = np.multiply(emb1, emb2)\n",
+    "        labels[i] = e[2]\n",
+    "        if flag:\n",
+    "            debug_count += 1\n",
+    "        names.append(str(e[0]) + '_' + str(e[1])) \n",
+    "        i +=1\n",
+    "    send_info(str(debug_count) + '/' + str(count))\n",
+    "    preds = predictable_model.predict_proba(edges_embs)[:, 1]\n",
+    "    return (preds, labels, names)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%%time\n",
+    "vv = tests_models_comb.mapValues(predict).persist()\n",
+    "outt = vv.collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "preds = []\n",
+    "labels = []\n",
+    "all_names = {}\n",
+    "all_labels = {}\n",
+    "for i in range(0, len(outt)):\n",
+    "    names = outt[i][1][2]\n",
+    "    for idx, name in enumerate(names):\n",
+    "        if name not in all_names:\n",
+    "            all_names[name] = []\n",
+    "        all_names[name].append(outt[i][1][0][idx])\n",
+    "        all_labels[name] = outt[i][1][1][idx]\n",
+    "#         preds.append(outt[i][1][0][idx])\n",
+    "#         labels.append(outt[i][1][1][idx])\n",
+    "for name in all_labels.keys():\n",
+    "    preds.append(np.array(all_names[name]).mean())\n",
+    "    labels.append(all_labels[name])\n",
+    "preds = np.array(preds)\n",
+    "labels = np.array(labels)\n",
+    "print(preds.shape, labels.shape)\n",
+    "test_roc = roc_auc_score(labels, preds)\n",
+    "test_ap = average_precision_score(labels, preds)\n",
+    "print('roc_auc_score', test_roc)\n",
+    "print('avg_prc_score', test_ap)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "labels.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "preds.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# sc.stop()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "for i in range(0, len(outt)):\n",
+    "    preds = outt[i][1][0]\n",
+    "    lables = outt[i][1][1]\n",
+    "    test_roc = roc_auc_score(lables, preds)\n",
+    "    test_ap = average_precision_score(lables, preds)\n",
+    "    print(outt[i][0], test_roc, test_ap, len(lables))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "a = partioned.groupByKey().mapValues(lambda x: len(list(x))).collect()\n",
+    "ss = 0\n",
+    "for tt in a:\n",
+    "    ss += tt[1]\n",
+    "print(ss)\n",
+    "a"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "node2parition.map(lambda x: (x[1],x[0])).groupByKey().mapValues(lambda x: len(list(x))).collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "sc.stop()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 41,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "a = models.collect()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 42,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(LogisticRegression(C=1.0, class_weight=None, dual=False, fit_intercept=True,\n",
+       "                    intercept_scaling=1, l1_ratio=None, max_iter=250,\n",
+       "                    multi_class='warn', n_jobs=None, penalty='l2',\n",
+       "                    random_state=0, solver='lbfgs', tol=0.0001, verbose=0,\n",
+       "                    warm_start=False),\n",
+       " <gensim.models.keyedvectors.Word2VecKeyedVectors at 0x1252b2fd0>)"
+      ]
+     },
+     "execution_count": 42,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "a[0][1]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 43,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from pympler import asizeof\n",
+    "siz = asizeof.asizeof(a, code=True)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 44,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "16"
+      ]
+     },
+     "execution_count": 44,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "siz // 1024 // 1024"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 48,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pickle"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 51,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "26"
+      ]
+     },
+     "execution_count": 51,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(pickle.dumps(a)) // 1024 // 1024"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.7"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
