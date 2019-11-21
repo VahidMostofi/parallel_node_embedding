@@ -408,7 +408,8 @@ def predict(values):
 # In[ ]:
 
 
-get_ipython().run_cell_magic('time', '', 'vv = predictables_models.mapValues(predict).persist()\noutt = vv.collect()')
+vv = predictables_models.mapValues(predict).persist()
+outt = vv.collect()
 
 
 # In[75]:
