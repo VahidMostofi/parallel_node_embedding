@@ -30,16 +30,33 @@ func writeToFile(edges []edgeType, fileName string) {
 		panic(err)
 	}
 	defer func() {
+		fmt.Println(fileName + " created")
 		if err := fo.Close(); err != nil {
 			panic(err)
 		}
 	}()
 	output := ""
 	for _, edge := range edges {
-		output += strconv.Itoa(edge.start) + " " + strconv.Itoa(edge.end) + "\n"
+		start := min(edge.start,edge.end)
+		end := max(edge.start, edge.end)
+		output += strconv.Itoa(start) + " " + strconv.Itoa(end) + "\n"
 	}
 	output = output[:len(output)-1]
 	fo.WriteString(output)
+}
+
+func min(x, y int) int {
+    if x < y {
+        return x
+    }
+    return y
+}
+
+func max(x, y int) int {
+    if x > y {
+        return x
+    }
+    return y
 }
 
 type graph struct {
@@ -160,8 +177,8 @@ func (g *graph) getAllEdges() []edgeType {
 func (g *graph) readGraph() []edgeType {
 	var edges []edgeType
 	flag.Parse()
-	if len(flag.Args()) < 1 {
-		panic("Enter the name of the file with the graph edges list")
+	if len(flag.Args()) < 2 {
+		panic("Enter the name of the file with the graph edges list as first argument and \n Enter the directory to save train_edges_true and test_edges_true as the second argument")
 	}
 	f, err := os.Open(flag.Args()[0])
 	if err != nil {
@@ -267,8 +284,11 @@ func main() {
 	testEdges := split(g, edges, 0.3)
 	trainEdges := g.getAllEdges()
 	fmt.Println(len(testEdges) + len(trainEdges))
-
-	writeToFile(testEdges, "test_edges.txt")
-	writeToFile(trainEdges, "train_edges.txt")
-
+	workDir := flag.Args()[1]
+	if string(workDir[len(workDir)-1]) != "/"{
+		workDir += "/"
+	}
+	writeToFile(testEdges, workDir + "test_edges_true.txt")
+	writeToFile(trainEdges, workDir + "train_edges_true.txt")
+	fmt.Println("Done")
 }
