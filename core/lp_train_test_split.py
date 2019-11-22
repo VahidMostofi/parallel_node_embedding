@@ -7,9 +7,10 @@ import sys
 import os
 
 parser = argparse.ArgumentParser()
-# todo give batch count to arg parser
+
 parser.add_argument('--input', nargs=1, dest='input_file', type=str, required=True, help='path to edge list of input graph')
 parser.add_argument('--dir', nargs=1, dest='working_dir', type=str, required=True, help='path to the directory to store outputs')
+parser.add_argument('--deli', nargs=1, dest='delimiter', type=str, required=False,default=' ', help='delimitor for input graph edge list, default is space')
 parser.add_argument('--test-fraction', dest='test_fraction', nargs='?', const=0.3, type=float, required=False)
 parser.add_argument('--remove-batches', dest='remove_batches', nargs='?', const=512, type=int,default=512, help='how many edge remove in each step')
 parser.add_argument('--random-seed', dest='random_seed', nargs='?', const=4, type=int,default=4, help='random seed')
@@ -22,6 +23,7 @@ if working_dir[-1] != '/':
 test_fraction = args.test_fraction
 BATCH_COUNT = args.remove_batches
 random_seed = args.random_seed
+delimiter = args.delimiter[0]
 
 if not os.path.exists(working_dir):
     print('the working directory doesn\'t exist.')
@@ -37,12 +39,11 @@ def write_edgelist(edgelist, path):
             f.write(line)
     print('file', path, 'created.')
 
-graph = nx.read_edgelist(input_file_path)
-graphs = list(nx.connected_component_subgraphs(graph))
+graph = nx.read_edgelist(input_file_path, delimiter=delimiter)
+graphs = nx.connected_components(graph)
+Gcc = sorted(graphs, key=len, reverse=True)
+graph = graph.subgraph(Gcc[0])
 
-if len(graphs) > 1:
-    print('the graph is not connected, choosing the largest connected component')
-graph = max(graphs, key=len)
 print('lcc features', len(graph.nodes),len(graph.edges))
 
 test_edge_count = int(test_fraction * len(graph.edges))
