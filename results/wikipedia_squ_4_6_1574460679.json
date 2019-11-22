@@ -1,0 +1,103 @@
+{
+    "splits_count": 4,
+    "combinations": [
+        [
+            0,
+            1
+        ],
+        [
+            0,
+            2
+        ],
+        [
+            0,
+            3
+        ],
+        [
+            1,
+            2
+        ],
+        [
+            1,
+            3
+        ],
+        [
+            2,
+            3
+        ]
+    ],
+    "number_of_combinations": 6,
+    "main_graph_nodes": 5201,
+    "main_graph_edges": 198493,
+    "split_size": 1301,
+    "dataset_name": "wikipedia_squ",
+    "true_train_edges_count": 138845,
+    "true_test_edges_count": 59648,
+    "test_name": "1574460679",
+    "splits_nodes_counts": [
+        1301,
+        1301,
+        1301,
+        1298
+    ],
+    "ignored_edges_count": 0,
+    "ignored_edges_fraction": 0.0,
+    "combinations_edges_count": [
+        [
+            "0_1",
+            36297
+        ],
+        [
+            "0_2",
+            36297
+        ],
+        [
+            "0_3",
+            36297
+        ],
+        [
+            "1_2",
+            36297
+        ],
+        [
+            "1_3",
+            36297
+        ],
+        [
+            "2_3",
+            36297
+        ]
+    ],
+    "splits_node2vec_runnning_times": [
+        [
+            "0_2",
+            "58.04"
+        ],
+        [
+            "1_2",
+            "58.20"
+        ],
+        [
+            "0_1",
+            "58.34"
+        ],
+        [
+            "2_3",
+            "58.34"
+        ],
+        [
+            "0_3",
+            "58.51"
+        ],
+        [
+            "1_3",
+            "58.66"
+        ]
+    ],
+    "distances": {
+        "1": 29657,
+        "2": 89639
+    },
+    "test_roc": 0.9596191403720405,
+    "test_ap": 0.9545821894411303
+}
