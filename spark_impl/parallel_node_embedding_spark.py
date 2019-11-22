@@ -6,10 +6,10 @@ import sys
 if len(sys.argv) < 3:
     print('first arg is path to spark, second arg is path of input direcotry')
 
-spark_path = sys.argv[1]
-input_direcitory = sys.argv[2]
-number_of_batches = 64
-embed_dim = 128
+#spark_path = sys.argv[1]
+input_direcitory = sys.argv[1]
+number_of_batches = 16
+embed_dim = 32
 number_of_walks = 10
 length_of_walks = 80
 node2vec_p = 0.3
@@ -20,13 +20,14 @@ for i in range(number_of_batches):
     for j in range((i+1), number_of_batches):
         combinations.append((i,j))
 
-combinations = [(8,53), (4,34), (7,45), (10,62), (0,2), (1,2), (3,26), (8,50), (9,57), (5,39), (6,40), (7,47), (9,55), (0,13), (2,23), (3,27), (5,35), (9,56), (2,24), (0,8), (1,8), (2,8), (3,8), (4,8), (5,8), (6,8), (7,8), (4,33), (0,10), (8,52), (8,51), (10,61), (0,4), (1,4), (2,4), (3,4), (2,21), (5,37), (6,42), (4,30), (6,41), (6,44), (2,22), (3,28), (3,29), (0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (1,15), (1,18), (2,20), (3,25), (5,38), (7,46), (8,54), (10,60), (0,3), (1,3), (2,3), (0,12), (1,16), (4,32), (4,31), (5,36), (6,43), (7,49), (0,1), (0,7), (1,7), (2,7), (3,7), (4,7), (5,7), (6,7), (0,9), (1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (0,11), (0,14), (1,19), (7,48), (10,63), (0,5), (1,5), (2,5), (3,5), (4,5), (1,17), (9,58), (9,59)]
+# combinations = [(8,53), (4,34), (7,45), (10,62), (0,2), (1,2), (3,26), (8,50), (9,57), (5,39), (6,40), (7,47), (9,55), (0,13), (2,23), (3,27), (5,35), (9,56), (2,24), (0,8), (1,8), (2,8), (3,8), (4,8), (5,8), (6,8), (7,8), (4,33), (0,10), (8,52), (8,51), (10,61), (0,4), (1,4), (2,4), (3,4), (2,21), (5,37), (6,42), (4,30), (6,41), (6,44), (2,22), (3,28), (3,29), (0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (1,15), (1,18), (2,20), (3,25), (5,38), (7,46), (8,54), (10,60), (0,3), (1,3), (2,3), (0,12), (1,16), (4,32), (4,31), (5,36), (6,43), (7,49), (0,1), (0,7), (1,7), (2,7), (3,7), (4,7), (5,7), (6,7), (0,9), (1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (0,11), (0,14), (1,19), (7,48), (10,63), (0,5), (1,5), (2,5), (3,5), (4,5), (1,17), (9,58), (9,59)]
 
 # In[1]:
 
 
 import findspark
-findspark.init(spark_path)
+#findspark.init(spark_path)
+findspark.init()
 
 
 # In[79]:
@@ -214,7 +215,7 @@ def make_model(x):
 # In[94]:
 
 
-models = partioned.groupByKey().map(make_model).partitionBy(len(combinations)).persist()
+models = partioned.groupByKey().map(make_model).partitionBy(len(combinations))
 
 
 # In[95]:
@@ -256,18 +257,18 @@ def min_first(a,b):
 def f_d2(x):
     edge, comb, length, path = x
     return (comb, (edge[:2], length, edge))
-d2 = dist2.map(f_d2).persist()
+d2 = dist2.map(f_d2)
 def f_d3(x):
     edge, comb, length, path = x
     return [(min_first(path[0],path[1]), (edge[:2], length, (edge[0],(edge[1],path[2], path[1], min_first(path[1],path[2])),edge[2]))),
             (min_first(path[1],path[2]), (edge[:2], length, ((edge[0],path[0], path[1], min_first(path[0],path[1])), edge[1],edge[2])))]
-d3 = dist3.flatMap(f_d3).persist()
+d3 = dist3.flatMap(f_d3)
 def f_d4(x):
     edge, comb, length, path = x
     e0 = (edge[0],path[0], path[1], min_first(path[0],path[1]))
     e1 = (edge[1],path[3], path[2], min_first(path[2],path[3]))
     return (min_first(path[1],path[2]), (edge[:2], length, (e0,e1,edge[2])))
-d4 = dist4.map(f_d4).persist()
+d4 = dist4.map(f_d4)
 
 
 # In[102]:
@@ -331,7 +332,7 @@ def d4_right_step(data):
     
 d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).partitionBy(len(combinations)).groupByKey(). join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
 
-d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(len(combinations)).groupByKey(). join(models).mapValues(d4_right_step).flatMap(lambda e: e[1]).persist()
+d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(len(combinations)).groupByKey(). join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
 
 
 # In[104]:
@@ -349,15 +350,16 @@ d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e
 
 #todo assert, later!
 print('these 3 must be equal')
-print(len(d3.collect()), len(d3_right_resolved.collect()) + len(d3_left_resolved.collect()))
-print(len(d3_right_resolved.collect()) == len(d3_left_resolved.collect()))
-print(len(d4_resolved.collect()) == len(d4.collect()))
+# print(len(d3.collect()), len(d3_right_resolved.collect()) + len(d3_left_resolved.collect()))
+# print(len(d3_right_resolved.collect()) == len(d3_left_resolved.collect()))
+# print(len(d4_resolved.collect()) == len(d4.collect()))
 
 
 # In[107]:
 
 # predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
-predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved).persist()
+# predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
+predictables = d2
 
 # In[108]:
 
@@ -365,7 +367,7 @@ predictables_grouped = predictables.partitionBy(len(combinations)).groupByKey()
 
 # In[109]:
 
-predictables_models = predictables_grouped.join(models).persist()
+predictables_models = predictables_grouped.join(models)
 
 # In[110]:
 
@@ -408,7 +410,7 @@ def predict(values):
 # In[ ]:
 
 
-vv = predictables_models.mapValues(predict).persist()
+vv = predictables_models.mapValues(predict)
 outt = vv.collect()
 
 
