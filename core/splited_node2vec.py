@@ -6,6 +6,7 @@ import argparse
 import sys
 import os
 import time
+import re
 from sklearn.linear_model import LogisticRegression
 
 from sklearn.metrics import roc_auc_score
@@ -22,7 +23,6 @@ parser.add_argument('--combinations', dest='combinations', type=str, required=Tr
 args = parser.parse_args()
 
 details = {}
-
 working_dir = args.working_dir[0]
 if working_dir[-1] != '/':
     working_dir += '/'
@@ -49,7 +49,7 @@ elif splits_count == 64:
         combinations = [(8,53), (4,34), (7,45), (10,62), (0,2), (1,2), (3,26), (8,50), (9,57), (5,39), (6,40), (7,47), (9,55), (0,13), (2,23), (3,27), (5,35), (9,56), (2,24), (0,8), (1,8), (2,8), (3,8), (4,8), (5,8), (6,8), (7,8), (4,33), (0,10), (8,52), (8,51), (10,61), (0,4), (1,4), (2,4), (3,4), (2,21), (5,37), (6,42), (4,30), (6,41), (6,44), (2,22), (3,28), (3,29), (0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (1,15), (1,18), (2,20), (3,25), (5,38), (7,46), (8,54), (10,60), (0,3), (1,3), (2,3), (0,12), (1,16), (4,32), (4,31), (5,36), (6,43), (7,49), (0,1), (0,7), (1,7), (2,7), (3,7), (4,7), (5,7), (6,7), (0,9), (1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (0,11), (0,14), (1,19), (7,48), (10,63), (0,5), (1,5), (2,5), (3,5), (4,5), (1,17), (9,58), (9,59)]
     elif args.combinations == 'max':
         pass
-
+details['framework'] = "seq"
 details['splits_count'] = splits_count
 details['combinations'] = combinations
 details['number_of_combinations'] = len(combinations)
@@ -179,7 +179,7 @@ for comb_idx, comb in enumerate(combinations):
 
 details['combinations_edges_count'] = [
     (str(comb[0]) + '_' + str(comb[1]), len(combination_edges[comb_idx]))
- for comb in combinations
+ for comb_idx,comb in enumerate(combinations)
  ]
 
 for split_idx in range(splits_count):
@@ -474,6 +474,16 @@ print(test_roc)
 print(test_ap)
 #======================RUN TEST ON TEST DATA FINISH=========================
 
+def list_to_string(lisst):
+    combinations_string = "["
+    for comb in lisst:
+        combinations_string += "({},{}),".format(comb[0],comb[1])
+    combinations_string = combinations_string[:-1]
+    combinations_string += "]"
+    return combinations_string
+details["combinations"] = list_to_string(details["combinations"])
+details["combinations_edges_count"] = list_to_string(details["combinations_edges_count"])
+details["splits_node2vec_runnning_times"] = list_to_string(details["splits_node2vec_runnning_times"])
 #write details to file
 base_name = details['dataset_name'] + '_' + str(details['splits_count']) + '_' + str(details['number_of_combinations']) + '_'
 with open('results/'+base_name + str(test_name)+'.json', 'w') as fp:
