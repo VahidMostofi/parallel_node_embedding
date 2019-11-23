@@ -1,0 +1,13 @@
+{
+    "dataset_name":"livemocha",
+    "main_graph_nodes": 104104,
+    "main_graph_edges": 2192907,
+    "p":0.3,
+    "q":0.3,
+    "test_fraction": 0.3,
+    "random_walk_length": 80,
+    "number_of_random_walks": 10,
+    "dimension": 128,
+    "roc_auc_score": 0.7936674846031603,
+    "avg_prc_score": 0.7907166232258707
+}

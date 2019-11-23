@@ -1,0 +1,13 @@
+{
+    "dataset_name":"wikipedia_squ",
+    "main_graph_nodes":5201,
+    "main_graph_edges":217073,
+    "p":0.3,
+    "q":0.3,
+    "test_fraction": 0.3,
+    "random_walk_length": 80,
+    "number_of_random_walks": 10,
+    "dimension": 128,
+    "roc_auc_score":0.9374,
+    "avg_prc_score":0.9261
+}
