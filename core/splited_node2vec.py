@@ -50,7 +50,7 @@ elif splits_count == 64:
     elif args.combinations == 'max':
         pass
 details['framework'] = "seq"
-details['splits_count'] = splits_count
+details['batch_count'] = splits_count
 details['combinations'] = combinations
 details['number_of_combinations'] = len(combinations)
 
@@ -63,10 +63,10 @@ details['main_graph_edges'] = len(graph.edges())
 
 print('combinations', combinations)
 print('# of combinations', len(combinations))
-print('split_size', split_size)
+print('batch_size', split_size)
 print('working_dir', working_dir)
 
-details['split_size'] = split_size
+details['batch_size'] = split_size
 details['dataset_name'] = working_dir.split('/')[-2]
 
 def write_edgelist(edgelist, path):
@@ -485,6 +485,6 @@ details["combinations"] = list_to_string(details["combinations"])
 details["combinations_edges_count"] = list_to_string(details["combinations_edges_count"])
 details["splits_node2vec_runnning_times"] = list_to_string(details["splits_node2vec_runnning_times"])
 #write details to file
-base_name = details['dataset_name'] + '_' + str(details['splits_count']) + '_' + str(details['number_of_combinations']) + '_'
+base_name = details['dataset_name'] + '_' + str(details['batch_count']) + '_' + str(details['number_of_combinations']) + '_'
 with open('results/'+base_name + str(test_name)+'.json', 'w') as fp:
     json.dump(details, fp, indent=4)

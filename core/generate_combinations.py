@@ -4,7 +4,7 @@ import argparse
 def generate_combinations(n, click_size):
     g = nx.Graph()
     for i in range(click_size):
-        for j in range(i, click_size):
+        for j in range(i+1, click_size):
             g.add_edge(i,j)
 
     single_count = int((n-click_size) / click_size)

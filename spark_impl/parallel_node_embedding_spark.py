@@ -2,33 +2,51 @@
 # coding: utf-8
 
 import sys
+import json
+import time
+import random
+import argparse
+import node2vec
+import numpy as np
+import networkx as nx
+from gensim.models import Word2Vec
 
-if len(sys.argv) < 3:
-    print('first arg is path to spark, second arg is path of input direcotry')
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import average_precision_score
 
-#spark_path = sys.argv[1]
-input_direcitory = sys.argv[1]
-number_of_batches = 64
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--batches', dest='batch_count', type=int, required=True, help='number of splits')
+parser.add_argument('--dir', dest='working_dir', type=str, required=True, help='path to the directory to store outputs')
+parser.add_argument('--combinations', dest='combinations', type=str, required=True, help='how many combinations we use, options: max, k as centeral circle size')
+args = parser.parse_args()
+
+details = {}
+details["framework"] = "spark"
+
+input_direcitory = args.working_dir
+number_of_batches = args.batch_count
+details["batch_count"] = number_of_batches
 embed_dim = 32
 number_of_walks = 10
 length_of_walks = 80
 node2vec_p = 0.3
 node2vec_q = 0.3
 input_path = input_direcitory
-combinations = []
-for i in range(number_of_batches):
-    for j in range((i+1), number_of_batches):
-        combinations.append((i,j))
-
-combinations = [(8,53), (4,34), (7,45), (10,62), (0,2), (1,2), (3,26), (8,50), (9,57), (5,39), (6,40), (7,47), (9,55), (0,13), (2,23), (3,27), (5,35), (9,56), (2,24), (0,8), (1,8), (2,8), (3,8), (4,8), (5,8), (6,8), (7,8), (4,33), (0,10), (8,52), (8,51), (10,61), (0,4), (1,4), (2,4), (3,4), (2,21), (5,37), (6,42), (4,30), (6,41), (6,44), (2,22), (3,28), (3,29), (0,6), (1,6), (2,6), (3,6), (4,6), (5,6), (1,15), (1,18), (2,20), (3,25), (5,38), (7,46), (8,54), (10,60), (0,3), (1,3), (2,3), (0,12), (1,16), (4,32), (4,31), (5,36), (6,43), (7,49), (0,1), (0,7), (1,7), (2,7), (3,7), (4,7), (5,7), (6,7), (0,9), (1,9), (2,9), (3,9), (4,9), (5,9), (6,9), (7,9), (8,9), (0,11), (0,14), (1,19), (7,48), (10,63), (0,5), (1,5), (2,5), (3,5), (4,5), (1,17), (9,58), (9,59)]
-
+if input_path[-1] != "/":
+    input_path += "/"
+dataset_name = input_direcitory.split("/")[-1]
+details["dataset_name"] = dataset_name
+test_name = str(time.time())[:10]
+details["test_name"] = test_name
 # In[1]:
 
 
 import findspark
 #findspark.init(spark_path)
 findspark.init()
-
+import pyspark
 
 # In[79]:
 
@@ -39,32 +57,43 @@ findspark.init()
 # send_info('test') 
 
 
-# In[80]:
-
-
-import pyspark
-import time
-import random
-
-import networkx as nx
-import node2vec
-import numpy as np
-from gensim.models import Word2Vec
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import average_precision_score
-
 # In[82]:
 
+
+combinations = []
+def generate_combinations(n, click_size):
+    g = nx.Graph()
+    for i in range(click_size):
+        for j in range(i+1, click_size):
+            g.add_edge(i,j)
+
+    single_count = int((n-click_size) / click_size)
+    for i in range(click_size, n):
+        connect_to = int((i-click_size) / single_count)
+        g.add_edge(connect_to, i)
+    combs = []
+    for e in g.edges():
+        e = (min(e[0],e[1]),max(e[0],e[1]))
+        combs.append(e)
+    return combs
+details["args.combinations"] = args.combinations
+if args.combinations == "max":
+    for i in range(number_of_batches):
+        for j in range((i+1), number_of_batches):
+            combinations.append((i,j))
+else:
+    combinations = generate_combinations(number_of_batches, int(args.combinations))
+print(combinations)
 combGraph = nx.Graph()
 for e in combinations:
     combGraph.add_edge(e[0],e[1])
-print(len(combinations))
-
+print("len(combinations)",len(combinations))
+details["combinations"] = combinations
+details["number_of_combinations"] = len(combinations)
 
 # In[13]:
-
-sc = pyspark.SparkContext(appName="test_myway")
+app_name = dataset_name + "_" + str(number_of_batches) + "_" + str(len(combinations))
+sc = pyspark.SparkContext(appName=app_name)
 
 # In[83]:
 
@@ -83,12 +112,12 @@ nodes_count = len(nodes.collect()) #todo optimize
 # In[85]:
 
 print('node_count', nodes_count)
-
+details["main_graph_nodes"] = nodes_count
 # In[86]:
 
 batch_size = 1 + (nodes_count // number_of_batches)
 # print('batch_size', batch_size)
-
+details["batch_size"] = batch_size
 # In[87]:
 
 print('batch_size', batch_size)
@@ -349,7 +378,7 @@ d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e
 
 
 #todo assert, later!
-print('these 3 must be equal')
+# print('these 3 must be equal')
 # print(len(d3.collect()), len(d3_right_resolved.collect()) + len(d3_left_resolved.collect()))
 # print(len(d3_right_resolved.collect()) == len(d3_left_resolved.collect()))
 # print(len(d4_resolved.collect()) == len(d4.collect()))
@@ -357,9 +386,11 @@ print('these 3 must be equal')
 
 # In[107]:
 
-# predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
-predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
-#predictables = d2
+# if we have maximum number of combinations, we only need have paths of length 2
+if len(combinations) == (number_of_batches) * (number_of_batches - 1):
+    predictables = d2
+else:
+    predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
 
 # In[108]:
 
@@ -438,20 +469,28 @@ test_roc = roc_auc_score(labels, preds)
 test_ap = average_precision_score(labels, preds)
 print('roc_auc_score', test_roc)
 print('avg_prc_score', test_ap)
+details["test_roc"] = test_roc
+details["test_ap"] = test_ap
 
 
 # In[76]:
 
+details['combinations_info'] = "["
 
 ss = 0
 for i in range(len(combinations)):
     ss += len(outt[i][1][0])
-    print(outt[i][0], roc_auc_score(outt[i][1][1], outt[i][1][0]), len(outt[i][1][0]))
-print(ss)
+    print(outt[i][0], roc_auc_score(outt[i][1][1], outt[i][1][0]), average_precision_score(outt[i][1][1], outt[i][1][0]), len(outt[i][1][0]))
+    details['combinations_info'] += str((outt[i][0], roc_auc_score(outt[i][1][1], outt[i][1][0]), average_precision_score(outt[i][1][1], outt[i][1][0]), len(outt[i][1][0]))) + ","
+details['combinations_info'] = details['combinations_info'][:-1]
+details['combinations_info'] += "]"
 
+print(ss)
+details['number_of_evaluated_edges'] = ss
 
 # In[77]:
 
+details["distance_info"] = "["
 
 ss = 0
 for l in range(2,5):
@@ -463,25 +502,40 @@ for l in range(2,5):
                 labels.append(outt[i][1][1][j])
                 preds.append(outt[i][1][0][j])
     if len(labels) > 0:
-        print(l, roc_auc_score(labels, preds), len(labels))
+        print(l, roc_auc_score(labels, preds), average_precision_score(labels, preds), len(labels))
+        details["distance_info"] += str((l, roc_auc_score(labels, preds), average_precision_score(labels, preds), len(labels))) + ","
     else:
         print(l, 0)
+        details["distance_info"] += str((l,0,0,0)) + ","
 print(ss)
+details["distance_info"] = details["distance_info"][:-1]
+details["distance_info"] += "]"
 
 
 # In[ ]:
 
 sc.stop()
 print('information about the run:')
-print('spark_path', spark_path)
 print('input_directory', input_direcitory)
 print('number_of_batches', number_of_batches)
-print('embed_dim', embed_dim)
-print('number_of_walks', number_of_walks)
-print('length_of_walks', length_of_walks)
-print('node2vec_p', node2vec_p)
-print('node2vec_q', node2vec_q)
+# print('embed_dim', embed_dim)
+# print('number_of_walks', number_of_walks)
+# print('length_of_walks', length_of_walks)
+# print('node2vec_p', node2vec_p)
+# print('node2vec_q', node2vec_q)
 print('len(combinations)', len(combinations))
 print('combinations', combinations)
 print('node_count', nodes_count)
 print('batch_size', batch_size)
+
+def list_to_string(lisst):
+    combinations_string = "["
+    for comb in lisst:
+        combinations_string += "({},{}),".format(comb[0],comb[1])
+    combinations_string = combinations_string[:-1]
+    combinations_string += "]"
+    return combinations_string
+details["combinations"] = list_to_string(details["combinations"])
+base_name = details['dataset_name'] + '_' + str(details['batch_count']) + '_' + str(details['number_of_combinations']) + '_'
+with open('../results/' + base_name + str(test_name)+'.json', 'w') as fp:
+    json.dump(details, fp, indent=4)
