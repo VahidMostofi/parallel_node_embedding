@@ -32,7 +32,7 @@ parser.add_argument('--dir', dest='working_dir', type=str, required=True, help='
 parser.add_argument('--combinations', dest='combinations', type=str, required=True, help='how many combinations we use, options: max, k as centeral circle size')
 parser.add_argument("--voting" ,nargs='?',dest='voting', type=str2bool, const=True, default=False, required=False, help="create multiple paths and vote")
 parser.add_argument("--weighted",nargs='?', dest='weighted', type=str2bool, const=True, default=False, required=False, help="if we are voting, do it weithed based on length of path?")
-
+parser.add_argument("--dim", nargs="?", dest="dim", type=int, const=True, default=128, required=False, help="dimension of node2vec embeddings")
 args = parser.parse_args()
 details = {}
 details["framework"] = "spark"
@@ -42,7 +42,8 @@ number_of_batches = args.batch_count
 details["batch_count"] = number_of_batches
 details["voting"] = args.voting
 details["weighted_voting"] = args.weighted
-embed_dim = 32
+embed_dim = args.dim
+details["ebed_dim"] = embed_dim
 number_of_walks = 10
 length_of_walks = 80
 node2vec_p = 0.3
@@ -104,7 +105,7 @@ for e in combinations:
 print("len(combinations)",len(combinations))
 details["combinations"] = combinations
 details["number_of_combinations"] = len(combinations)
-
+partition_size = 16 #len(combinations)
 # In[13]:
 app_name = dataset_name + "_" + str(number_of_batches) + "_" + str(len(combinations))
 sc = pyspark.SparkContext(appName=app_name)
@@ -200,7 +201,7 @@ def learn_embeddings(walks):
 
 
 #todo partition?!!
-partioned = train_edges2comb_filtered.partitionBy(len(combinations))
+partioned = train_edges2comb_filtered.partitionBy(partition_size)
 
 
 # In[93]:
@@ -258,7 +259,7 @@ def make_model(x):
 # In[94]:
 
 
-models = partioned.groupByKey().map(make_model).partitionBy(len(combinations))
+models = partioned.groupByKey().map(make_model).partitionBy(partition_size)
 
 
 # In[95]:
@@ -281,15 +282,22 @@ test_edges2comb = test_edges.flatMap(find_partitions)
 
 # In[99]:
 # this is the part i create multiple paths
+max_path_count = 4
+details["max_path_count"] = max_path_count
 def path_finder(x):
     results = []
     start = x[0][0]
     end = x[0][1]
+    paths = []
     if bd_node2partition.value[x[1][0]] != bd_node2partition.value[x[1][1]]:
         for path in nx.all_simple_paths(combGraph, start, end, cutoff=3):
-            results.append((x[1], x[0], path))
-    else:
-        results.append((x[1], x[0], nx.shortest_path(combGraph, start, end)))
+            paths.append(path)
+#            results.append((x[1], x[0], path))
+    results.append((x[1], x[0], nx.shortest_path(combGraph, start, end)))
+    random.shuffle(paths)
+    for path in paths[:max_path_count - 1]:
+        results.append((x[1], x[0], path))
+    assert len(results) < max_path_count + 1
     return results
 
 if args.voting:
@@ -386,18 +394,18 @@ def d4_right_step(data):
     return output
 
     
-d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).partitionBy(len(combinations)).groupByKey(). join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
+d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
 
-d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(len(combinations)).groupByKey(). join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
+d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
 
 
 # In[104]:
 
 
 #
-d3_left_resolved = d3.filter(lambda e: type(e[1][2][0]) != int).map(lambda e: (e[1][2][0][3],e)). partitionBy(len(combinations)).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
+d3_left_resolved = d3.filter(lambda e: type(e[1][2][0]) != int).map(lambda e: (e[1][2][0][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
 
-d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e[1][2][1][3],e)). partitionBy(len(combinations)).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
+d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e[1][2][1][3],e)). partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
 
 
 
@@ -424,7 +432,7 @@ else:
 
 # In[108]:
 
-predictables_grouped = predictables.partitionBy(len(combinations)).groupByKey()
+predictables_grouped = predictables.partitionBy(partition_size).groupByKey()
 
 # In[109]:
 
