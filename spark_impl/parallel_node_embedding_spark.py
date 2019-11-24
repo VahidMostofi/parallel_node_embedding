@@ -67,7 +67,7 @@ def generate_combinations(n, click_size):
         for j in range(i+1, click_size):
             g.add_edge(i,j)
 
-    single_count = int((n-click_size) / click_size)
+    single_count = int((n-click_size) / click_size) + 1
     for i in range(click_size, n):
         connect_to = int((i-click_size) / single_count)
         g.add_edge(connect_to, i)
