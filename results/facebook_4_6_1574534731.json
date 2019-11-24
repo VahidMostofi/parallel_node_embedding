@@ -7,6 +7,8 @@
     "number_of_combinations": 6, 
     "batch_size": 1010, 
     "framework": "spark", 
+    "voting": false,
+    "weighted_voting" : false,
     "number_of_evaluated_edges": 119788, 
     "dataset_name": "facebook", 
     "test_name": "1574534731", 

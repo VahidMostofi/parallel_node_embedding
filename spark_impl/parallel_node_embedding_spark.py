@@ -15,19 +15,33 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--batches', dest='batch_count', type=int, required=True, help='number of splits')
 parser.add_argument('--dir', dest='working_dir', type=str, required=True, help='path to the directory to store outputs')
 parser.add_argument('--combinations', dest='combinations', type=str, required=True, help='how many combinations we use, options: max, k as centeral circle size')
-args = parser.parse_args()
+parser.add_argument("--voting" ,nargs='?',dest='voting', type=str2bool, const=True, default=False, required=False, help="create multiple paths and vote")
+parser.add_argument("--weighted",nargs='?', dest='weighted', type=str2bool, const=True, default=False, required=False, help="if we are voting, do it weithed based on length of path?")
 
+args = parser.parse_args()
 details = {}
 details["framework"] = "spark"
 
 input_direcitory = args.working_dir
 number_of_batches = args.batch_count
 details["batch_count"] = number_of_batches
+details["voting"] = args.voting
+details["weighted_voting"] = args.weighted
 embed_dim = 32
 number_of_walks = 10
 length_of_walks = 80
@@ -266,9 +280,22 @@ test_edges2comb = test_edges.flatMap(find_partitions)
 
 
 # In[99]:
+# this is the part i create multiple paths
+def path_finder(x):
+    results = []
+    start = x[0][0]
+    end = x[0][1]
+    if bd_node2partition.value[x[1][0]] != bd_node2partition.value[x[1][1]]:
+        for path in nx.all_simple_paths(combGraph, start, end, cutoff=3):
+            results.append((x[1], x[0], path))
+    else:
+        results.append((x[1], x[0], nx.shortest_path(combGraph, start, end)))
+    return results
 
-
-aa = test_edges2comb.map(lambda x: (x[1], x[0], nx.shortest_path(combGraph, x[0][0], x[0][1])))
+if args.voting:
+    aa = test_edges2comb.flatMap(path_finder)
+else:
+    aa = test_edges2comb.map(lambda x: (x[1], x[0], nx.shortest_path(combGraph, x[0][0], x[0][1])))
 bb = aa.map(lambda x: (x[0],x[1],len(x[2]), x[2]))
 dist2 = bb.filter(lambda x: x[2] == 2)
 dist3 = bb.filter(lambda x: x[2] == 3)
@@ -306,10 +333,10 @@ d4 = dist4.map(f_d4)
 def the_f(node, current_batch, embding_model):
     find_in = None
 
-    if current_batch == embding_model['alpha']:
+    if node in embding_model['alpha_map']:
         node_vector = embding_model['alpha_map'][node]
         find_in = 'beta_map'
-    if current_batch == embding_model['beta']:
+    if node in embding_model['beta_map']:
         node_vector = embding_model['beta_map'][node]
         find_in = 'alpha_map'
     best_key = None
@@ -386,11 +413,14 @@ d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e
 
 # In[107]:
 
-# if we have maximum number of combinations, we only need have paths of length 2
-if len(combinations) == (number_of_batches) * (number_of_batches - 1):
-    predictables = d2
-else:
+if args.voting:
     predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
+else:
+    # if we have maximum number of combinations, we only need have paths of length 2
+    if len(combinations) == (number_of_batches) * (number_of_batches - 1):
+        predictables = d2
+    else:
+        predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
 
 # In[108]:
 
@@ -452,15 +482,22 @@ preds = []
 labels = []
 all_names = {}
 all_labels = {}
+all_wieghts = {}
 for i in range(0, len(outt)):
     names = outt[i][1][2]
     for idx, name in enumerate(names):
         if name not in all_names:
             all_names[name] = []
-        all_names[name].append(outt[i][1][0][idx])
+            all_wieghts[name] = 0
+        if args.weighted and args.voting: 
+            weight = (5-outt[i][1][3][idx])
+        else:
+            weight = 1
+        all_names[name].append(weight * outt[i][1][0][idx])
         all_labels[name] = outt[i][1][1][idx]
+        all_wieghts[name] += weight
 for name in all_labels.keys():
-    preds.append(np.array(all_names[name]).mean())
+    preds.append(np.array(all_names[name]).sum() / all_wieghts[name])
     labels.append(all_labels[name])
 preds = np.array(preds)
 labels = np.array(labels)

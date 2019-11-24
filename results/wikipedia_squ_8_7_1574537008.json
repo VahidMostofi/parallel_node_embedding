@@ -7,6 +7,8 @@
     "combinations": "[(0,1),(0,2),(0,3),(0,4),(0,5),(1,6),(1,7)]",
     "number_of_combinations": 7,
     "main_graph_nodes": 5201,
+    "voting": false,
+    "weighted_voting" : false,
     "batch_size": 651,
     "test_roc": 0.8745810685395541,
     "test_ap": 0.8563424389691603,
