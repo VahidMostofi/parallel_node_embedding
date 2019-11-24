@@ -1,7 +1,7 @@
 {
     "framework": "spark",
     "batch_count": 16,
-    "dataset_name": "",
+    "dataset_name": "wikipedia_squ",
     "test_name": "1574536421",
     "args.combinations": "5",
     "combinations": "[(0,1),(0,2),(0,3),(0,4),(0,5),(0,6),(0,7),(1,2),(1,3),(1,4),(1,8),(1,9),(1,10),(2,3),(2,4),(2,11),(2,12),(2,13),(3,4),(3,14),(3,15)]",
