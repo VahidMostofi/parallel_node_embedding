@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+print("start..")
 import sys
 import json
 import time
@@ -9,6 +9,9 @@ import argparse
 import node2vec
 import numpy as np
 import networkx as nx
+import pip
+
+
 from gensim.models import Word2Vec
 
 from sklearn.linear_model import LogisticRegression
@@ -36,7 +39,7 @@ parser.add_argument("--dim", nargs="?", dest="dim", type=int, const=True, defaul
 args = parser.parse_args()
 details = {}
 details["framework"] = "spark"
-
+print(args)
 input_direcitory = args.working_dir
 number_of_batches = args.batch_count
 details["batch_count"] = number_of_batches
@@ -57,10 +60,10 @@ test_name = str(time.time())[:10]
 details["test_name"] = test_name
 # In[1]:
 
-
-import findspark
+print("importing spark")
+#import findspark
 #findspark.init(spark_path)
-findspark.init()
+#findspark.init()
 import pyspark
 
 # In[79]:
@@ -105,7 +108,7 @@ for e in combinations:
 print("len(combinations)",len(combinations))
 details["combinations"] = combinations
 details["number_of_combinations"] = len(combinations)
-partition_size = 16 #len(combinations)
+partition_size = len(combinations)
 # In[13]:
 app_name = dataset_name + "_" + str(number_of_batches) + "_" + str(len(combinations))
 sc = pyspark.SparkContext(appName=app_name)
@@ -170,7 +173,7 @@ def find_partitions(edge):
 
 # In[90]:
 
-train_edges2comb = train_edges.flatMap(find_partitions)
+train_edges2comb = train_edges.partitionBy(20).flatMap(find_partitions) #todo
 train_edges2comb_filtered = train_edges2comb.filter(lambda ee: ee[0] in combinations)
 
 # In[91]:
@@ -275,7 +278,7 @@ del test_edge_false
 # In[98]:
 
 
-test_edges2comb = test_edges.flatMap(find_partitions)
+test_edges2comb = test_edges.partitionBy(20).flatMap(find_partitions)
 # test_edges2comb_filtered = test_edges2comb.filter(lambda ee: ee[0] in combinations)\
 # test_edges2comb.collect()
 

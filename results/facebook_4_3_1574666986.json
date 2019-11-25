@@ -1,0 +1,20 @@
+{
+    "framework": "spark",
+    "batch_count": 4,
+    "voting": true,
+    "weighted_voting": true,
+    "ebed_dim": 128,
+    "dataset_name": "facebook",
+    "test_name": "1574666986",
+    "args.combinations": "2",
+    "combinations": "[(0,1),(0,2),(0,3)]",
+    "number_of_combinations": 3,
+    "main_graph_nodes": 4039,
+    "batch_size": 1010,
+    "max_path_count": 4,
+    "test_roc": 0.9827826996526774,
+    "test_ap": 0.9811193942808984,
+    "combinations_info": "[((0, 3), 0.9790162940881454, 0.9797140754356889, 60209),((0, 1), 0.9657197788325776, 0.9707076983483198, 60222),((0, 2), 0.9704443685991766, 0.9715720562077077, 59105)]",
+    "number_of_evaluated_edges": 179536,
+    "distance_info": "[(2, 0.9847086248659697, 0.9834123110809059, 99080),(3, 0.9557374915169576, 0.9627054783686663, 80456),(4, 0, 0, 0)]"
+}
