@@ -294,7 +294,7 @@ test_edges2comb = test_edges.flatMap(find_partitions).partitionBy(len(combinatio
 
 # In[99]:
 # this is the part i create multiple paths
-max_path_count = 4
+max_path_count = 4 #todo make this an arg
 details["max_path_count"] = max_path_count
 def path_finder(x):
     results = []
