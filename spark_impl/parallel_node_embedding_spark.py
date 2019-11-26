@@ -38,13 +38,16 @@ parser.add_argument('--dir', dest='working_dir', type=str, required=True, help='
 parser.add_argument('--combinations', dest='combinations', type=str, required=True, help='how many combinations we use, options: max, k as centeral circle size')
 parser.add_argument("--voting" ,nargs='?',dest='voting', type=str2bool, const=True, default=False, required=False, help="create multiple paths and vote")
 parser.add_argument("--weighted",nargs='?', dest='weighted', type=str2bool, const=True, default=False, required=False, help="if we are voting, do it weithed based on length of path?")
+parser.add_argument("--explore",nargs='?', dest='explore', type=int, const=True, default=2, required=False, help="if we are voting, how many extra paths we explore, default is 2")
 parser.add_argument("--dim", nargs="?", dest="dim", type=int, const=True, default=128, required=False, help="dimension of node2vec embeddings")
 parser.add_argument("--wl", nargs="?", dest="walk_lengths", type=int, const=True, default=80, required=False, help="walk_lengths")
 parser.add_argument("--wc", nargs="?", dest="walk_counts", type=int, const=True, default=10, required=False, help="walk_counts")
+parser.add_argument("--workers", nargs="?", dest="word2vec_workers", type=int, const=True, default=1, required=False, help="word2vec workers")
 args = parser.parse_args()
 details = {}
 details["framework"] = "spark"
 print(args)
+word2vec_workers = args.word2vec_workers
 input_direcitory = args.working_dir
 number_of_batches = args.batch_count
 details["batch_count"] = number_of_batches
@@ -187,6 +190,7 @@ train_edges2comb_filtered = train_edges2comb.filter(lambda ee: ee[0] in combinat
 
 # In[91]:
 
+details["word2vec_workers"] = word2vec_workers
 
 def embed_edge_list(edge_list):
     nx_g = nx.Graph()
@@ -205,7 +209,7 @@ def embed_edge_list(edge_list):
 
 def learn_embeddings(walks):
     walks = [list(map(str, walk)) for walk in walks]
-    model = Word2Vec(walks, size=embed_dim, window=10, min_count=0, sg=1, workers=1, iter=1)
+    model = Word2Vec(walks, size=embed_dim, window=10, min_count=0, sg=1, workers=word2vec_workers, iter=1)
     return model
 
 
@@ -294,7 +298,7 @@ test_edges2comb = test_edges.flatMap(find_partitions).partitionBy(len(combinatio
 
 # In[99]:
 # this is the part i create multiple paths
-max_path_count = 4 #todo make this an arg
+max_path_count = args.explore
 details["max_path_count"] = max_path_count
 def path_finder(x):
     results = []
