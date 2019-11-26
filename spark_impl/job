@@ -1,0 +1,29 @@
+#!/bin/env python
+
+#SBATCH --partition=parallel
+#SBATCH -J sparkcluster
+#SBATCH -t 2440 # runtime to request, in minutes !!!
+#SBATCH -o sparkcluster-%J.log # output extra o means overwrite
+#SBATCH -N 10
+#SBATCH -c 12
+#SBATCH --mem=0
+
+# setup the spark paths
+
+import os
+
+os.environ['SPARK_HOME']='/global/software/spark/spark-2.2.0-bin-hadoop2.7'
+
+#os.environ['SPARK_LOCAL_DIRS']='/tmp'
+
+os.environ['LOCAL_DIRS']=os.environ['SPARK_LOCAL_DIRS']
+
+os.environ['SPARK_WORKER_DIR']=os.path.join(os.environ['SPARK_LOCAL_DIRS'], 'work')
+
+from sparkhpc import sparkjob
+
+sparkjob.start_cluster('230G',
+                       cores_per_executor=12,
+                       spark_home='/global/software/spark/spark-2.2.0-bin-hadoop2.7',
+                       master_log_dir='None',
+                       master_log_filename='spark_master.out')

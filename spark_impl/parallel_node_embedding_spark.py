@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 print("start..")
+print("importing spark")
+import pyspark
+print("importing other packages")
 import sys
 import json
 import time
@@ -36,6 +39,8 @@ parser.add_argument('--combinations', dest='combinations', type=str, required=Tr
 parser.add_argument("--voting" ,nargs='?',dest='voting', type=str2bool, const=True, default=False, required=False, help="create multiple paths and vote")
 parser.add_argument("--weighted",nargs='?', dest='weighted', type=str2bool, const=True, default=False, required=False, help="if we are voting, do it weithed based on length of path?")
 parser.add_argument("--dim", nargs="?", dest="dim", type=int, const=True, default=128, required=False, help="dimension of node2vec embeddings")
+parser.add_argument("--wl", nargs="?", dest="walk_lengths", type=int, const=True, default=80, required=False, help="walk_lengths")
+parser.add_argument("--wc", nargs="?", dest="walk_counts", type=int, const=True, default=10, required=False, help="walk_counts")
 args = parser.parse_args()
 details = {}
 details["framework"] = "spark"
@@ -47,8 +52,12 @@ details["voting"] = args.voting
 details["weighted_voting"] = args.weighted
 embed_dim = args.dim
 details["ebed_dim"] = embed_dim
-number_of_walks = 10
-length_of_walks = 80
+number_of_walks = args.walk_lengths
+details["number_of_walks"] = number_of_walks
+length_of_walks = args.walk_counts
+details["length_of_walks"] = length_of_walks
+print('length_of_walks', length_of_walks)
+print('number_of_walks', number_of_walks)
 node2vec_p = 0.3
 node2vec_q = 0.3
 input_path = input_direcitory
@@ -60,11 +69,10 @@ test_name = str(time.time())[:10]
 details["test_name"] = test_name
 # In[1]:
 
-print("importing spark")
 #import findspark
 #findspark.init(spark_path)
 #findspark.init()
-import pyspark
+
 
 # In[79]:
 
@@ -113,11 +121,12 @@ partition_size = len(combinations)
 app_name = dataset_name + "_" + str(number_of_batches) + "_" + str(len(combinations))
 sc = pyspark.SparkContext(appName=app_name)
 
+sc.addPyFile("node2vec.py")
 # In[83]:
 
 train_edge_true = sc.textFile(input_path + "train_edges_true.txt") .map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) .map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 1))
 train_edge_false= sc.textFile(input_path + "train_edges_false.txt") .map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) .map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 0))
-train_edges = sc.union([train_edge_true, train_edge_false]).persist()
+train_edges = sc.union([train_edge_true, train_edge_false])
 del train_edge_true
 del train_edge_false
 
@@ -173,7 +182,7 @@ def find_partitions(edge):
 
 # In[90]:
 
-train_edges2comb = train_edges.partitionBy(20).flatMap(find_partitions) #todo
+train_edges2comb = train_edges.flatMap(find_partitions) #todo
 train_edges2comb_filtered = train_edges2comb.filter(lambda ee: ee[0] in combinations)
 
 # In[91]:
@@ -196,7 +205,7 @@ def embed_edge_list(edge_list):
 
 def learn_embeddings(walks):
     walks = [list(map(str, walk)) for walk in walks]
-    model = Word2Vec(walks, size=embed_dim, window=10, min_count=0, sg=1, workers=2, iter=1)
+    model = Word2Vec(walks, size=embed_dim, window=10, min_count=0, sg=1, workers=1, iter=1)
     return model
 
 
@@ -270,7 +279,7 @@ models = partioned.groupByKey().map(make_model).partitionBy(partition_size)
 
 test_edge_true = sc.textFile(input_path + "test_edges_true.txt") .map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) .map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 1))
 test_edge_false= sc.textFile(input_path + "test_edges_false.txt") .map(lambda x: (int(x.split(' ')[0]), int(x.split(' ')[1]))) .map(lambda x: (min(x[0],x[1]), max(x[0],x[1]), 0))
-test_edges = sc.union([test_edge_true, test_edge_false]).persist()
+test_edges = sc.union([test_edge_true, test_edge_false])
 del test_edge_true
 del test_edge_false
 
@@ -278,7 +287,7 @@ del test_edge_false
 # In[98]:
 
 
-test_edges2comb = test_edges.partitionBy(20).flatMap(find_partitions)
+test_edges2comb = test_edges.flatMap(find_partitions).partitionBy(len(combinations))
 # test_edges2comb_filtered = test_edges2comb.filter(lambda ee: ee[0] in combinations)\
 # test_edges2comb.collect()
 
@@ -293,7 +302,7 @@ def path_finder(x):
     end = x[0][1]
     paths = []
     if bd_node2partition.value[x[1][0]] != bd_node2partition.value[x[1][1]]:
-        for path in nx.all_simple_paths(combGraph, start, end, cutoff=3):
+        for path in nx.all_simple_paths(combGraph, start, end, cutoff=2):
             paths.append(path)
 #            results.append((x[1], x[0], path))
     results.append((x[1], x[0], nx.shortest_path(combGraph, start, end)))
@@ -408,7 +417,7 @@ d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(part
 #
 d3_left_resolved = d3.filter(lambda e: type(e[1][2][0]) != int).map(lambda e: (e[1][2][0][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
 
-d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e[1][2][1][3],e)). partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
+d3_right_resolved= d3.filter(lambda e: type(e[1][2][1]) != int).map(lambda e: (e[1][2][1][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
 
 
 
@@ -429,6 +438,7 @@ if args.voting:
 else:
     # if we have maximum number of combinations, we only need have paths of length 2
     if len(combinations) == (number_of_batches) * (number_of_batches - 1):
+        print("predictables = d2")
         predictables = d2
     else:
         predictables = d2.union(d3_right_resolved).union(d3_left_resolved).union(d4_resolved)
