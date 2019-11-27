@@ -273,9 +273,9 @@ def make_model(x):
 
 
 # In[94]:
-
-
-models = partioned.groupByKey().map(make_model).partitionBy(partition_size)
+partitionsGrouped = partioned.groupByKey()
+print("wowowowo", partitionsGrouped.mapValues(lambda a: len(list(a))).collect())
+models = partitionsGrouped.map(make_model).partitionBy(partition_size)
 
 
 # In[95]:
@@ -408,11 +408,11 @@ def d4_right_step(data):
         output.append((comb, (edge, length, (e0, B, label))))
         
     return output
+# d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
+d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
 
-    
-d4_left_resolved = d4.map(lambda e: (e[1][2][0][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_left_step).flatMap(lambda e: e[1])
-
-d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
+# d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).partitionBy(partition_size).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
+d4_resolved = d4_left_resolved.map(lambda e: (e[1][2][1][3],e)).groupByKey().join(models).mapValues(d4_right_step).flatMap(lambda e: e[1])
 
 
 # In[104]:
